@@ -1,0 +1,13 @@
+ http:
+  routers:
+    entrypoints:
+    - http
+    service: service-whoami
+    rule: Path(`/whoami`)
+
+services:
+  service-whoami:
+    loadBalancer:
+      servers:
+      - url: http://localhost:5000
+      passHostHeader: false
