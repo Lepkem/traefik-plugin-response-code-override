@@ -1,9 +1,9 @@
- http:
+http:
   routers:
     entrypoints:
     - http
     service: service-whoami
-    rule: Path(`/whoami`)
+    rule: Path('/whoami')
 
 services:
   service-whoami:
