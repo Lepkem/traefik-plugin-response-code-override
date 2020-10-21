@@ -1,0 +1,24 @@
+pilot:
+    token: ""
+
+log:
+  level: DEBUG
+
+api:
+  dashboard: true
+  insecure: true
+
+experimental:
+  devPlugin:
+    goPath: /Users/rafpe/personal/traefik-plugin-response-code-override
+    moduleName: github.com/Lepkem/traefik-plugin-response-code-override
+
+entryPoints:
+  http:
+    address: ":8000"
+    forwardedHeaders:
+      insecure: true
+
+providers:
+  file:
+    filename: rules.yaml
