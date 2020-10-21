@@ -1,6 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/go
 # Edit at https://www.toptal.com/developers/gitignore?templates=go
 
+traefik
+
 ### Go ###
 # Binaries for programs and plugins
 *.exe
@@ -23,3 +25,4 @@
 /Godeps/
 
 # End of https://www.toptal.com/developers/gitignore/api/go%
+.go-version
