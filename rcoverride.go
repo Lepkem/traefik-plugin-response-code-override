@@ -3,7 +3,9 @@ package traefik_plugin_response_code_override
 import (
 	"bytes"
 	"context"
+	"log"
 	"net/http"
+	"os"
 )
 
 // Config the plugin configuration.
@@ -29,6 +31,7 @@ type responseCodeOverride struct {
 	overrrides      map[int]int
 	headersToRemove []string
 	removeBody      bool
+	logger          log.Logger
 }
 
 // New created a new plugin.
@@ -39,6 +42,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		next:            next,
 		removeBody:      config.RemoveBody,
 		headersToRemove: config.HeadersToRemove,
+		logger:          *log.New(os.Stdout, "plugin:responseCodeOverride ", log.Ldate|log.Ltime),
 	}, nil
 }
 
@@ -110,7 +114,6 @@ func (w *responseCodeOverrideWriter) Write(b []byte) (int, error) {
 }
 
 func (e *responseCodeOverride) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-
 	respCodeOverrideWriter := &responseCodeOverrideWriter{ResponseWriter: rw, plugin: e}
 	e.next.ServeHTTP(respCodeOverrideWriter, req)
 
