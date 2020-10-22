@@ -12,15 +12,19 @@ http:
    service-foo:
       loadBalancer:
         servers:
-          - url: http://127.0.0.1:5000
+          # - url: http://127.0.0.1:5000
+          - url: https://google.com
         passHostHeader: false
-  
+
   middlewares:
     my-plugin:
       plugin:
         dev:
-          RemoveBody: false
+          RemoveBody: true
+          HeadersToRemove:
+            - "Referrer-Policy"
+            - "Alt-Svc"
           Overrides:
-            '200': 401
+            '404': 501
 
 
