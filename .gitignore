@@ -26,3 +26,4 @@ traefik
 
 # End of https://www.toptal.com/developers/gitignore/api/go%
 .go-version
+config.yaml
