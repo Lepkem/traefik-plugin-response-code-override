@@ -1,0 +1,14 @@
+displayName: "Response code override"
+
+type: middleware
+
+import: github.com/Lepkem/traefik-plugin-response-code-override
+
+summary: Plugin allows to remap origin response code into specified one along with removing response body and specific headers.
+
+testData:
+    RemoveBody: false
+    HeadersToRemove:
+        - "foo-bar"
+    Overrides:
+        '200': 404
