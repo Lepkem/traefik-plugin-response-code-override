@@ -27,3 +27,4 @@ traefik
 # End of https://www.toptal.com/developers/gitignore/api/go%
 .go-version
 config.yaml
+plugins-storage/archives/state.json
