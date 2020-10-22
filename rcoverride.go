@@ -87,10 +87,12 @@ func (w *responseCodeOverrideWriter) WriteHeader(responseCode int) {
 	}
 
 	for _, headerToRemove := range w.plugin.headersToRemove {
+		log.Println("Removing header:", headerToRemove)
 		w.Header().Del(headerToRemove)
 	}
 
 	if val, ok := w.plugin.overrrides[responseCode]; ok {
+		log.Println("Changing response code to: ", val)
 		w.overridden = true
 		w.ResponseWriter.WriteHeader(val)
 		return
@@ -120,8 +122,10 @@ func (e *responseCodeOverride) ServeHTTP(rw http.ResponseWriter, req *http.Reque
 	bodyBytes := respCodeOverrideWriter.buffer.Bytes()
 
 	if e.removeBody {
+		log.Println("Returning without body")
 		rw.Write(make([]byte, 0))
 	} else {
+		log.Println("Returning with body")
 		rw.Write(bodyBytes)
 	}
 
