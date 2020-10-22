@@ -1,239 +1,100 @@
 package traefik_plugin_response_code_override
 
 import (
-	"bytes"
-	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-// Write a new test
 func TestOverrideWithBody(t *testing.T) {
-	tests := []struct {
-		desc       string
-		name       string
-		removeBody bool
-		overrrides map[int]int
-	}{
-		{
-			desc:       "aaaa",
-			name:       "uuuu",
-			removeBody: false,
-			overrrides: map[int]int{
-				200: 504,
-			},
-		},
+	expectedBody := "This is a test body"
+	expectedResponseCode := http.StatusTooManyRequests
+
+	r, _ := http.NewRequest("GET", "https://google.com/whoami", nil)
+	w := httptest.NewRecorder()
+
+	// create a handler to use as "next" which will verify the request
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(expectedBody))
+	})
+
+	plugin := &responseCodeOverride{
+		overrrides: map[int]int{200: expectedResponseCode},
+		next:       nextHandler,
+		removeBody: false,
 	}
 
+	// create the handler to test, using our custom "next" handler
+	plugin.ServeHTTP(w, r)
 
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
+	assert.Equal(t, expectedResponseCode, w.Code, "handler returned wrong status code")
+	assert.Equal(t, expectedBody, w.Body.String(), "Body should be returned")
+}
 
-			config :=&Config{
-				Overrides:  map[int]int{},
-				RemoveBody: false,
-			}
-			
+func TestOverrideWithoutBody(t *testing.T) {
+	expectedBody := ""
+	expectedResponseCode := http.StatusTooManyRequests
 
+	r, _ := http.NewRequest("GET", "https://google.com/whoami", nil)
+	w := httptest.NewRecorder()
 
-			next := func(rw http.ResponseWriter, req *http.Request) {
-				rw.Header().Set("Content-Encoding", test.contentEncoding)
-				rw.Header().Set("Last-Modified", "Thu, 02 Jun 2016 06:01:08 GMT")
-				rw.Header().Set("Content-Length", strconv.Itoa(len(test.resBody)))
-				rw.WriteHeader(http.StatusOK)
+	// create a handler to use as "next" which will verify the request
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("X-Test", "test")
 
-				_, _ = fmt.Fprintf(rw, test.resBody)
-			}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(expectedBody))
+	})
 
-			rewriteBody, err := New(context.Background(), http.HandlerFunc(next), config, "rewriteBody")
-			if err != nil {
-				t.Fatal(err)
-			}
+	plugin := &responseCodeOverride{
+		overrrides: map[int]int{200: expectedResponseCode},
+		next:       nextHandler,
+		removeBody: true,
+	}
 
-			recorder := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
+	// create the handler to test, using our custom "next" handler
+	plugin.ServeHTTP(w, r)
 
-			rewriteBody.ServeHTTP(recorder, req)
-
-			if _, exists := recorder.Result().Header["Last-Modified"]; exists != test.expLastModified {
-				t.Errorf("got last-modified header %v, want %v", exists, test.expLastModified)
-			}
-
-			if _, exists := recorder.Result().Header["Content-Length"]; exists {
-				t.Error("The Content-Length Header must be deleted")
-			}
-
-			if !bytes.Equal([]byte(test.expResBody), recorder.Body.Bytes()) {
-				t.Errorf("got body %q, want %q", recorder.Body.Bytes(), test.expResBody)
-			}
-		})
-
-
+	assert.Equal(t, expectedResponseCode, w.Code, "handler returned wrong status code")
+	assert.Equal(t, expectedBody, w.Body.String(), "Body should be returned")
 
 }
 
-func TestServeHTTP(t *testing.T) {
-	tests := []struct {
-		desc            string
-		contentEncoding string
-		rewrites        []Rewrite
-		lastModified    bool
-		resBody         string
-		expResBody      string
-		expLastModified bool
-		sss string 
-	}{
-		{
-			desc: "should replace foo by bar",
-			rewrites: []Rewrite{
-				{
-					Regex:       "foo",
-					Replacement: "bar",
-				},
-			},
-			resBody:    "foo is the new bar",
-			expResBody: "bar is the new bar",
-		},
-		{
-			desc: "should replace foo by bar, then by foo",
-			rewrites: []Rewrite{
-				{
-					Regex:       "foo",
-					Replacement: "bar",
-				},
-				{
-					Regex:       "bar",
-					Replacement: "foo",
-				},
-			},
-			resBody:    "foo is the new bar",
-			expResBody: "foo is the new foo",
-		},
-		{
-			desc: "should not replace anything if content encoding is not identity or empty",
-			rewrites: []Rewrite{
-				{
-					Regex:       "foo",
-					Replacement: "bar",
-				},
-			},
-			contentEncoding: "gzip",
-			resBody:         "foo is the new bar",
-			expResBody:      "foo is the new bar",
-		},
-		{
-			desc: "should replace foo by bar if content encoding is identity",
-			rewrites: []Rewrite{
-				{
-					Regex:       "foo",
-					Replacement: "bar",
-				},
-			},
-			contentEncoding: "identity",
-			resBody:         "foo is the new bar",
-			expResBody:      "bar is the new bar",
-		},
-		{
-			desc: "should not remove the last modified header",
-			rewrites: []Rewrite{
-				{
-					Regex:       "foo",
-					Replacement: "bar",
-				},
-			},
-			contentEncoding: "identity",
-			lastModified:    true,
-			resBody:         "foo is the new bar",
-			expResBody:      "bar is the new bar",
-			expLastModified: true,
-		},
+func TestOverrideWithoutHeader(t *testing.T) {
+	expectedBody := ""
+	expectedResponseCode := http.StatusTooManyRequests
+
+	clientResponseHeader := "X-Test"
+	clientResponseHeaderVal := "test"
+
+	r, _ := http.NewRequest("GET", "https://google.com/whoami", nil)
+	w := httptest.NewRecorder()
+
+	// create a handler to use as "next" which will verify the request
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add(clientResponseHeader, clientResponseHeaderVal)
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(expectedBody))
+	})
+
+	plugin := &responseCodeOverride{
+		overrrides:      map[int]int{200: expectedResponseCode},
+		next:            nextHandler,
+		removeBody:      false,
+		headersToRemove: []string{clientResponseHeader},
 	}
 
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			config := &Config{
-				LastModified: test.lastModified,
-				Rewrites:     test.rewrites,
-			}
+	// create the handler to test, using our custom "next" handler
+	plugin.ServeHTTP(w, r)
 
-			next := func(rw http.ResponseWriter, req *http.Request) {
-				rw.Header().Set("Content-Encoding", test.contentEncoding)
-				rw.Header().Set("Last-Modified", "Thu, 02 Jun 2016 06:01:08 GMT")
-				rw.Header().Set("Content-Length", strconv.Itoa(len(test.resBody)))
-				rw.WriteHeader(http.StatusOK)
+	resp := w.Result()
 
-				_, _ = fmt.Fprintf(rw, test.resBody)
-			}
+	assert.Equal(t, expectedResponseCode, w.Code, "handler returned wrong status code")
+	assert.Equal(t, expectedBody, w.Body.String(), "Body should be returned")
+	assert.Nil(t, resp.Header[clientResponseHeader], "Header should be removed from response")
 
-			rewriteBody, err := New(context.Background(), http.HandlerFunc(next), config, "rewriteBody")
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			recorder := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
-
-			rewriteBody.ServeHTTP(recorder, req)
-
-			if _, exists := recorder.Result().Header["Last-Modified"]; exists != test.expLastModified {
-				t.Errorf("got last-modified header %v, want %v", exists, test.expLastModified)
-			}
-
-			if _, exists := recorder.Result().Header["Content-Length"]; exists {
-				t.Error("The Content-Length Header must be deleted")
-			}
-
-			if !bytes.Equal([]byte(test.expResBody), recorder.Body.Bytes()) {
-				t.Errorf("got body %q, want %q", recorder.Body.Bytes(), test.expResBody)
-			}
-		})
-	}
-}
-
-func TestNew(t *testing.T) {
-	tests := []struct {
-		desc     string
-		rewrites []Rewrite
-		expErr   bool
-	}{
-		{
-			desc: "should return no error",
-			rewrites: []Rewrite{
-				{
-					Regex:       "foo",
-					Replacement: "bar",
-				},
-				{
-					Regex:       "bar",
-					Replacement: "foo",
-				},
-			},
-			expErr: false,
-		},
-		{
-			desc: "should return an error",
-			rewrites: []Rewrite{
-				{
-					Regex:       "*",
-					Replacement: "bar",
-				},
-			},
-			expErr: true,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			config := &Config{
-				Rewrites: test.rewrites,
-			}
-
-			_, err := New(context.Background(), nil, config, "rewriteBody")
-			if test.expErr && err == nil {
-				t.Fatal("expected error on bad regexp format")
-			}
-		})
-	}
 }
